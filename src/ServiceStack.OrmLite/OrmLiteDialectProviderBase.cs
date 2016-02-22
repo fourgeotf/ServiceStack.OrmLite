@@ -20,6 +20,7 @@ using ServiceStack.Text;
 using System.Diagnostics;
 using ServiceStack.Common;
 using System.IO;
+using System.Linq;
 using System.Linq.Expressions;
 
 namespace ServiceStack.OrmLite
@@ -260,6 +261,12 @@ namespace ServiceStack.OrmLite
         {
             if (value == null || value.GetType() == typeof(DBNull)) return null;
 
+            if (type.IsEnum || (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>) && type.GetGenericArguments()[0].IsEnum))
+            {
+                var t = Nullable.GetUnderlyingType(type) ?? type;
+                return (value == null) ? null : Enum.ToObject(t, value);
+            }
+
             if (value.GetType() == type)
             {
                 if (type == typeof(byte[]))
@@ -319,6 +326,12 @@ namespace ServiceStack.OrmLite
 
             if (fieldType == typeof(decimal))
                 return ((decimal)value).ToString(CultureInfo.InvariantCulture);
+
+            if (fieldType.IsEnum || (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(Nullable<>) && fieldType.GetGenericArguments()[0].IsEnum))
+            {
+                var t = Nullable.GetUnderlyingType(fieldType) ?? fieldType;
+                return Convert.ChangeType(value, Enum.GetUnderlyingType(fieldType)).ToString();
+            }
 
             return ShouldQuoteValue(fieldType)
                     ? OrmLiteConfig.DialectProvider.GetQuotedParam(value.ToString())
@@ -646,7 +659,7 @@ namespace ServiceStack.OrmLite
             var sql = new StringBuilder();
             var modelDef = objWithProperties.GetType().GetModelDefinition();
 
-            foreach (var fieldDef in modelDef.FieldDefinitions)
+            foreach (var fieldDef in modelDef.FieldDefinitions.Where(x => x.IsUpdatable))
             {
                 if (fieldDef.IsComputed) continue;
 
@@ -691,7 +704,7 @@ namespace ServiceStack.OrmLite
 
             var command = connection.CreateCommand();
             command.CommandTimeout = OrmLiteConfig.CommandTimeout;
-            foreach (var fieldDef in modelDef.FieldDefinitions)
+            foreach (var fieldDef in modelDef.FieldDefinitions.Where(x => x.IsUpdatable))
             {
                 if (fieldDef.IsComputed) continue;
                 try
@@ -869,9 +882,9 @@ namespace ServiceStack.OrmLite
             return fieldDefinition ?? GetUndefinedColumnDefinition(fieldType, null);
         }
 
-        public virtual bool DoesTableExist(IDbConnection db, string tableName)
+        public virtual bool DoesTableExist(IOrmLiteSession session, string tableName)
         {
-            return db.Exec(dbCmd => DoesTableExist(dbCmd, tableName));
+            return session.Exec(dbCmd => DoesTableExist(dbCmd, tableName));
         }
 
         public virtual bool DoesTableExist(IDbCommand dbCmd, string tableName)
@@ -1033,16 +1046,17 @@ namespace ServiceStack.OrmLite
 			                     column);
 		}
 
-		public virtual string  ToAddForeignKeyStatement<T,TForeign>(Expression<Func<T,object>> field,
+		public virtual string  ToAddForeignKeyStatement<T,TForeign>(IOrmLiteSession session,
+                                                                    Expression<Func<T,object>> field,
 		                                                            Expression<Func<TForeign,object>> foreignField,
 		                                                            OnFkOption onUpdate,
 		                                                            OnFkOption onDelete,
 		                                                            string foreignKeyName=null){
-			var sourceMD = ModelDefinition<T>.Definition;
-			var fieldName = sourceMD.GetFieldDefinition (field).FieldName; 
-						
-			var referenceMD=ModelDefinition<TForeign>.Definition;
-			var referenceFieldName= referenceMD.GetFieldDefinition(foreignField).FieldName;
+			var sourceMD = session.GetModelDefinition<T>().Definition;
+			var fieldName = sourceMD.GetFieldDefinition (field).FieldName;
+
+		    var referenceMD = session.GetModelDefinition<TForeign>().Definition;
+		    var referenceFieldName = referenceMD.GetFieldDefinition(foreignField).FieldName;
 			
 			string name = GetQuotedName(foreignKeyName.IsNullOrEmpty()?
 			                            "fk_"+sourceMD.ModelName+"_"+ fieldName+"_"+referenceFieldName:
@@ -1058,11 +1072,12 @@ namespace ServiceStack.OrmLite
 			                     GetForeignKeyOnUpdateClause(new ForeignKeyConstraint(typeof(T), onUpdate: FkOptionToString(onUpdate))));	
 		}
 
-		public virtual string ToCreateIndexStatement<T>(Expression<Func<T,object>> field,
+		public virtual string ToCreateIndexStatement<T>(IOrmLiteSession session,
+                                                        Expression<Func<T,object>> field,
 		                                                string indexName=null, bool unique=false)
 		{
 			
-			var sourceMD = ModelDefinition<T>.Definition;
+			var sourceMD = session.GetModelDefinition<T>().Definition;
 			var fieldName = sourceMD.GetFieldDefinition (field).FieldName;
 			
 			string name =GetQuotedName(indexName.IsNullOrEmpty()?
