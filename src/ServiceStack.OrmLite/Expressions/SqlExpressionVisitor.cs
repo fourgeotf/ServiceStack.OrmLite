@@ -411,7 +411,7 @@ namespace ServiceStack.OrmLite
             var setFields = new StringBuilder();
             var dialectProvider = OrmLiteConfig.DialectProvider;
 
-            foreach (var fieldDef in modelDef.FieldDefinitions)
+            foreach (var fieldDef in modelDef.FieldDefinitions.Where(x => x.IsUpdatable))
             {
                 if (updateFields.Count > 0 && !updateFields.Contains(fieldDef.Name)) continue; // added
                 var value = fieldDef.GetValue(item);
