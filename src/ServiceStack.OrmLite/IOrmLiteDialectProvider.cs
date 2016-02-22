@@ -96,7 +96,7 @@ namespace ServiceStack.OrmLite
 
         List<string> SequenceList(Type tableType);
 
-        bool DoesTableExist(IDbConnection db, string tableName);
+        bool DoesTableExist(IOrmLiteSession session, string tableName);
         bool DoesTableExist(IDbCommand dbCmd, string tableName);
 
         bool DoesSequenceExist(IDbCommand dbCmd, string sequencName);
@@ -114,12 +114,14 @@ namespace ServiceStack.OrmLite
 		string ToAddColumnStatement (Type modelType, FieldDefinition fieldDef);
 		string ToAlterColumnStatement(Type modelType, FieldDefinition fieldDef);
 		string ToChangeColumnNameStatement(Type modelType, FieldDefinition fieldDef, string oldColumnName);
-		string ToAddForeignKeyStatement<T,TForeign>(Expression<Func<T,object>> field,
+		string ToAddForeignKeyStatement<T,TForeign>(IOrmLiteSession session,
+                                                     Expression<Func<T,object>> field,
 		                                             Expression<Func<TForeign,object>> foreignField,
 		                                             OnFkOption onUpdate,
 		                                             OnFkOption onDelete,
 		                                             string foreignKeyName=null);
-		string ToCreateIndexStatement<T>(Expression<Func<T,object>> field,
+		string ToCreateIndexStatement<T>(IOrmLiteSession session,
+                                         Expression<Func<T,object>> field,
 		                                 string indexName=null, bool unique=false);
 		#endregion DDL
 
