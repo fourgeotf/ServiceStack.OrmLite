@@ -13,36 +13,36 @@ namespace ServiceStack.OrmLite
 			return OrmLiteConfig.DialectProvider.ExpressionVisitor<T>();            
 		}
 
-		public static List<T> Select<T>(this IDbCommand dbCmd, Expression<Func<T, bool>> predicate)
+		public static List<T> Select<T>(this IDbCommand dbCmd, IOrmLiteSession session, Expression<Func<T, bool>> predicate)
 		{
 			var ev = OrmLiteConfig.DialectProvider.ExpressionVisitor<T>();
 			string sql = ev.Where(predicate).ToSelectStatement();
 			using (var reader = dbCmd.ExecReader(sql))
 			{
-				return ConvertToList<T>(reader);
+				return ConvertToList<T>(reader, session);
 			}
 		}
 
-		public static List<T> Select<T>(this IDbCommand dbCmd, Func<SqlExpressionVisitor<T>, SqlExpressionVisitor<T>> expression)
+		public static List<T> Select<T>(this IDbCommand dbCmd, IOrmLiteSession session, Func<SqlExpressionVisitor<T>, SqlExpressionVisitor<T>> expression)
 		{
 			var ev = OrmLiteConfig.DialectProvider.ExpressionVisitor<T>();
 			string sql = expression(ev).ToSelectStatement();
 			using (var reader = dbCmd.ExecReader(sql))
 			{
-				return ConvertToList<T>(reader);
+				return ConvertToList<T>(reader, session);
 			}
 		}
 		
-		public static List<T> Select<T>(this IDbCommand dbCmd, SqlExpressionVisitor<T> expression)
+		public static List<T> Select<T>(this IDbCommand dbCmd, IOrmLiteSession session, SqlExpressionVisitor<T> expression)
 		{
 			string sql = expression.ToSelectStatement();
 			using (var reader = dbCmd.ExecReader(sql))
 			{
-				return ConvertToList<T>(reader);
+				return ConvertToList<T>(reader, session);
 			}
 		}
 
-        public static List<T> SelectParam<T>(this IDbCommand dbCmd, Expression<Func<T, bool>> predicate)
+        public static List<T> SelectParam<T>(this IDbCommand dbCmd, IOrmLiteSession session, Expression<Func<T, bool>> predicate)
         {
             var ev = OrmLiteConfig.DialectProvider.ExpressionVisitor<T>();
             ev.IsParameterized = true;
@@ -60,20 +60,20 @@ namespace ServiceStack.OrmLite
 
             using (var reader = dbCmd.ExecReader(sql, paramsToInsert))
             {
-                return ConvertToList<T>(reader);
+                return ConvertToList<T>(reader, session);
             }
         }
 		
-		public static T First<T>(this IDbCommand dbCmd, Expression<Func<T, bool>> predicate)
+		public static T First<T>(this IDbCommand dbCmd, IOrmLiteSession session, Expression<Func<T, bool>> predicate)
 		{
 			var ev = OrmLiteConfig.DialectProvider.ExpressionVisitor<T>();
 			
-			return First(dbCmd, ev.Where(predicate).Limit(1));
+			return First(dbCmd, session, ev.Where(predicate).Limit(1));
 		}
 		
-		public static T First<T>(this IDbCommand dbCmd,  SqlExpressionVisitor<T> expression)
+		public static T First<T>(this IDbCommand dbCmd, IOrmLiteSession session, SqlExpressionVisitor<T> expression)
 		{
-			var result = FirstOrDefault(dbCmd, expression);
+			var result = FirstOrDefault(dbCmd, session, expression);
 			if (Equals(result, default(T)))
 			{
 				throw new ArgumentNullException(string.Format(
@@ -82,19 +82,19 @@ namespace ServiceStack.OrmLite
 			return result;
 		}
 		
-		public static T FirstOrDefault<T>(this IDbCommand dbCmd, Expression<Func<T, bool>> predicate)
+		public static T FirstOrDefault<T>(this IDbCommand dbCmd, IOrmLiteSession session, Expression<Func<T, bool>> predicate)
 		{
 			var ev = OrmLiteConfig.DialectProvider.ExpressionVisitor<T>();
 			
-			return FirstOrDefault(dbCmd, ev.Where(predicate).Limit(1));
+			return FirstOrDefault(dbCmd, session, ev.Where(predicate).Limit(1));
 		}
 
-		public static T FirstOrDefault<T>(this IDbCommand dbCmd, SqlExpressionVisitor<T> expression)
+		public static T FirstOrDefault<T>(this IDbCommand dbCmd, IOrmLiteSession session, SqlExpressionVisitor<T> expression)
 		{
 			string sql= expression.ToSelectStatement();
 			using (var dbReader = dbCmd.ExecReader(sql))
 			{
-				return ConvertTo<T>(dbReader);
+				return ConvertTo<T>(dbReader, session);
 			}
 		}
 
@@ -143,15 +143,15 @@ namespace ServiceStack.OrmLite
             return dbCmd.GetScalar<long>(sql);
         }
 		
-		private static T ConvertTo<T>(IDataReader dataReader)
+		private static T ConvertTo<T>(IDataReader dataReader, IOrmLiteSession session)
         {
-			var fieldDefs = ModelDefinition<T>.Definition.AllFieldDefinitionsArray;
+			var fieldDefs = session.GetModelDefinition<T>().Definition.AllFieldDefinitionsArray;
 
 			using (dataReader)
 			{
 				if (dataReader.Read())
 				{
-					var row = OrmLiteUtilExtensions.CreateInstance<T>();
+					var row = session.CreateInstance<T>();
 
 				    var namingStrategy = OrmLiteConfig.DialectProvider.NamingStrategy;
 
@@ -173,9 +173,9 @@ namespace ServiceStack.OrmLite
 			}
 		}
 		
-		private static List<T> ConvertToList<T>(IDataReader dataReader)
+		private static List<T> ConvertToList<T>(IDataReader dataReader, IOrmLiteSession session)
 		{
-			var fieldDefs = ModelDefinition<T>.Definition.AllFieldDefinitionsArray;
+			var fieldDefs = session.GetModelDefinition<T>().Definition.AllFieldDefinitionsArray;
 			var fieldDefCache = new Dictionary<int, FieldDefinition>();
 
 			var to = new List<T>();
