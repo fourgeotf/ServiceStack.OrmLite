@@ -14,123 +14,124 @@ namespace ServiceStack.OrmLite
 	
 	public static class OrmLiteDDLExtensions
 	{
-		public static void AlterTable<T>(this IDbConnection dbConn, string command)
+		public static void AlterTable<T>(this IOrmLiteSession session, string command)
 		{
-			AlterTable(dbConn, typeof(T),command);
+			AlterTable(session, typeof(T),command);
 		}
 		
-		public static void AlterTable(this IDbConnection dbConn, Type modelType, string command)
+		public static void AlterTable(this IOrmLiteSession session, Type modelType, string command)
 		{
 			string sql = string.Format("ALTER TABLE {0} {1};", 
 			                           OrmLiteConfig.DialectProvider.GetQuotedTableName( modelType.GetModelDefinition()),
 			                           command);
-			dbConn.ExecuteSql(sql);
+			session.ExecuteSql(sql);
 		}
 		
-		public static void AddColumn<T>(this IDbConnection dbConn,
+		public static void AddColumn<T>(this IOrmLiteSession session,
 		                                Expression<Func<T,object>> field)
 		{
-			var modelDef = ModelDefinition<T>.Definition;
+			var modelDef = session.GetModelDefinition<T>().Definition;
 			var fieldDef = modelDef.GetFieldDefinition<T>(field);
-			dbConn.AddColumn(typeof(T), fieldDef);
+			session.AddColumn(typeof(T), fieldDef);
 		}
 
 				
-		public static void AddColumn(this IDbConnection dbConn, Type modelType, FieldDefinition fieldDef)
+		public static void AddColumn(this IOrmLiteSession session, Type modelType, FieldDefinition fieldDef)
 		{
 			var command = OrmLiteConfig.DialectProvider.ToAddColumnStatement(modelType, fieldDef);
-			dbConn.ExecuteSql(command);
+			session.ExecuteSql(command);
 		}
 
 				
-		public static void AlterColumn<T>(this IDbConnection dbConn,  Expression<Func<T,object>> field)
+		public static void AlterColumn<T>(this IOrmLiteSession session,  Expression<Func<T,object>> field)
 		{
-			var modelDef = ModelDefinition<T>.Definition;
+			var modelDef = session.GetModelDefinition<T>().Definition;
 			var fieldDef = modelDef.GetFieldDefinition<T>(field);
-			dbConn.AlterColumn(typeof(T), fieldDef);
+			session.AlterColumn(typeof(T), fieldDef);
 		}
 
-		public static void AlterColumn(this IDbConnection dbConn, Type modelType, FieldDefinition fieldDef)
+		public static void AlterColumn(this IOrmLiteSession session, Type modelType, FieldDefinition fieldDef)
 		{
 			var command = OrmLiteConfig.DialectProvider.ToAlterColumnStatement(modelType, fieldDef);
-			dbConn.ExecuteSql(command);
+			session.ExecuteSql(command);
 		}
 
 
-		public static void ChangeColumnName<T>(this IDbConnection dbConn,
+		public static void ChangeColumnName<T>(this IOrmLiteSession session,
 		                                       Expression<Func<T,object>> field,
 		                                       string oldColumnName)
 		{
-			var modelDef = ModelDefinition<T>.Definition;
+			var modelDef = session.GetModelDefinition<T>().Definition;
 			var fieldDef = modelDef.GetFieldDefinition<T>(field);
-			dbConn.ChangeColumnName(typeof(T), fieldDef, oldColumnName);	
+			session.ChangeColumnName(typeof(T), fieldDef, oldColumnName);	
 		}
 
-		public static void ChangeColumnName(this IDbConnection dbConn,
+		public static void ChangeColumnName(this IOrmLiteSession session,
 		                                    Type modelType,
 		                                    FieldDefinition fieldDef,
 		                                    string oldColumnName)
 		{
 			var command = OrmLiteConfig.DialectProvider.ToChangeColumnNameStatement(modelType, fieldDef, oldColumnName);
-			dbConn.ExecuteSql(command);
+			session.ExecuteSql(command);
 		}
 
-		public static void DropColumn<T>(this IDbConnection dbConn,string columnName)
+		public static void DropColumn<T>(this IOrmLiteSession session,string columnName)
 		{
-			dbConn.DropColumn(typeof(T), columnName);
+			session.DropColumn(typeof(T), columnName);
 		}
 
 
-		public static void DropColumn(this IDbConnection dbConn,Type modelType, string columnName)
+		public static void DropColumn(this IOrmLiteSession session,Type modelType, string columnName)
 		{
 			string command = string.Format("ALTER TABLE {0} DROP {1};",
 			                               OrmLiteConfig.DialectProvider.GetQuotedTableName(modelType.GetModelDefinition().ModelName),
 			                               OrmLiteConfig.DialectProvider.GetQuotedName(columnName));
 			
-			dbConn.ExecuteSql(command);
+			session.ExecuteSql(command);
 		}
 			
 
 
-		public static void AddForeignKey<T,TForeign>(this IDbConnection dbConn,
+		public static void AddForeignKey<T,TForeign>(this IOrmLiteSession session,
 		                                             Expression<Func<T,object>> field,
 		                                             Expression<Func<TForeign,object>> foreignField,
 		                                             OnFkOption onUpdate,
 		                                             OnFkOption onDelete,
 		                                             string foreignKeyName=null)
 		{
-			string command = OrmLiteConfig.DialectProvider.ToAddForeignKeyStatement(field,
+			string command = OrmLiteConfig.DialectProvider.ToAddForeignKeyStatement(session,
+                                                                                    field,
 			                                                                        foreignField,
 			                                                                        onUpdate,
 			                                                                        onDelete,
 			                                                                        foreignKeyName);
-			dbConn.ExecuteSql (command);	
+			session.ExecuteSql (command);	
 		}
 
 
-		public static void DropForeignKey<T>(this IDbConnection dbConn,string foreignKeyName)
+		public static void DropForeignKey<T>(this IOrmLiteSession session,string foreignKeyName)
 		{
 			string command = string.Format("ALTER TABLE {0} DROP FOREIGN KEY {1};",
-			                               OrmLiteConfig.DialectProvider.GetQuotedTableName(ModelDefinition<T>.Definition.ModelName),
+			                               OrmLiteConfig.DialectProvider.GetQuotedTableName(session.GetModelDefinition<T>().Definition.ModelName),
 			                               OrmLiteConfig.DialectProvider.GetQuotedName(foreignKeyName));	
-			dbConn.ExecuteSql(command);
+			session.ExecuteSql(command);
 		}
 
 
-		public static void CreateIndex<T>(this IDbConnection dbConn,Expression<Func<T,object>> field,
+		public static void CreateIndex<T>(this IOrmLiteSession session,Expression<Func<T,object>> field,
 		                                  string indexName=null, bool unique=false)
 		{
-			var command = OrmLiteConfig.DialectProvider.ToCreateIndexStatement(field, indexName, unique);
-			dbConn.ExecuteSql(command);
+			var command = OrmLiteConfig.DialectProvider.ToCreateIndexStatement(session, field, indexName, unique);
+			session.ExecuteSql(command);
 		}
 
 
-		public static void DropIndex<T>(this IDbConnection dbConn, string indexName)
+		public static void DropIndex<T>(this IOrmLiteSession session, string indexName)
 		{
 			string command = string.Format("ALTER TABLE {0} DROP INDEX  {1};",
-			                               OrmLiteConfig.DialectProvider.GetQuotedTableName(ModelDefinition<T>.Definition.ModelName),
+			                               OrmLiteConfig.DialectProvider.GetQuotedTableName(session.GetModelDefinition<T>().Definition.ModelName),
 			                               OrmLiteConfig.DialectProvider.GetQuotedName(indexName));
-			dbConn.ExecuteSql(command);
+			session.ExecuteSql(command);
 		}
 
 	}
