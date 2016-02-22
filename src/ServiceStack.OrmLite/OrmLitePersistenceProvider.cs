@@ -13,6 +13,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics.Eventing.Reader;
 using ServiceStack.Common;
 using ServiceStack.Common.Utils;
 using ServiceStack.DataAccess;
@@ -29,6 +30,7 @@ namespace ServiceStack.OrmLite
 		protected bool DisposeConnection = true;
 
 		protected IDbConnection connection;
+	    protected IOrmLiteSession session;
 		public IDbConnection Connection
 		{
 			get
@@ -47,9 +49,10 @@ namespace ServiceStack.OrmLite
 			ConnectionString = connectionString;
 		}
 
-		public OrmLitePersistenceProvider(IDbConnection connection)
+		public OrmLitePersistenceProvider(IOrmLiteSession session)
 		{
-			this.connection = connection;
+			this.connection = session.Connection;
+		    this.session = session;
 			this.DisposeConnection = false;
 		}
 
@@ -65,7 +68,7 @@ namespace ServiceStack.OrmLite
 		{
 			using (var dbCmd = CreateCommand())
 			{
-				return dbCmd.GetByIdOrDefault<T>(id);
+				return dbCmd.GetByIdOrDefault<T>(session, id);
 			}
 		}
 
@@ -74,7 +77,7 @@ namespace ServiceStack.OrmLite
 		{
 			using (var dbCmd = CreateCommand())
 			{
-				return dbCmd.GetByIds<T>(ids);
+				return dbCmd.GetByIds<T>(session, ids);
 			}
 		}
 
@@ -83,15 +86,15 @@ namespace ServiceStack.OrmLite
 		{
 			using (var dbCmd = CreateCommand())
 			{
-				return InsertOrUpdate(dbCmd, entity);
+				return InsertOrUpdate(dbCmd, session, entity);
 			}
 		}
 
-		private static T InsertOrUpdate<T>(IDbCommand dbCmd, T entity)
+		private static T InsertOrUpdate<T>(IDbCommand dbCmd, IOrmLiteSession session, T entity)
 			where T : class, new()
 		{
 			var id = IdUtils.GetId(entity);
-			var existingEntity = dbCmd.GetByIdOrDefault<T>(id);
+			var existingEntity = dbCmd.GetByIdOrDefault<T>(session, id);
 			if (existingEntity != null)
 			{
 				existingEntity.PopulateWith(entity);
@@ -112,7 +115,7 @@ namespace ServiceStack.OrmLite
 			{
 				foreach (var entity in entities)
 				{
-					InsertOrUpdate(dbCmd, entity);
+					InsertOrUpdate(dbCmd, session, entity);
 				}
 				dbTrans.Commit();
 			}
@@ -131,7 +134,7 @@ namespace ServiceStack.OrmLite
 		{
 			using (var dbCmd = CreateCommand())
 			{
-				dbCmd.DeleteById<T>(id);
+				dbCmd.DeleteById<T>(session, id);
 			}
 		}
 
@@ -139,7 +142,7 @@ namespace ServiceStack.OrmLite
 		{
 			using (var dbCmd = this.CreateCommand())
 			{
-				dbCmd.DeleteByIds<T>(ids);
+				dbCmd.DeleteByIds<T>(session, ids);
 			}
 		}
 
