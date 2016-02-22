@@ -154,7 +154,10 @@ namespace ServiceStack.OrmLite
                         computeAttr != null ? computeAttr.Expression : string.Empty,
                     Scale = decimalAttribute != null ? decimalAttribute.Scale : (int?)null,
                     BelongToModelName = belongToAttribute != null ? belongToAttribute.BelongToTableType.GetModelDefinition().ModelName : null, 
+                    IsUpdatable = true,
                 };
+
+                fieldDefinition.IsUpdatable = propertyInfo.FirstAttribute<NotUpdatableAttribute>() == null;
 
                 if (propertyInfo.FirstAttribute<IgnoreAttribute>() != null)
                   modelDef.IgnoredFieldDefinitions.Add(fieldDefinition);
