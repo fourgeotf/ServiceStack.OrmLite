@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -9,9 +9,11 @@ namespace ServiceStack.OrmLite
     public class OrmLiteSPStatement
     {
         private IDbCommand command { get; set; }
+        private IOrmLiteSession _session { get; set; }
 
-        public OrmLiteSPStatement(IDbCommand cmd)
+        public OrmLiteSPStatement(IOrmLiteSession session, IDbCommand cmd)
         {
+            _session = session;
             command = cmd;
         }
 
@@ -24,7 +26,7 @@ namespace ServiceStack.OrmLite
             try
             {
                 reader = command.ExecuteReader();
-                return reader.ConvertToList<T>();
+                return reader.ConvertToList<T>(_session);
             }
             finally
             {
@@ -62,7 +64,7 @@ namespace ServiceStack.OrmLite
             try
             {
                 reader = command.ExecuteReader();
-                return reader.ConvertTo<T>();
+                return reader.ConvertTo<T>(_session);
             }
             finally
             {
