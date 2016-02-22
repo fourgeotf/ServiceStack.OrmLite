@@ -140,10 +140,10 @@ namespace ServiceStack.OrmLite
             }
         }
 
-        internal static void DropTable<T>(this IDbCommand dbCmd)
+        internal static void DropTable<T>(this IDbCommand dbCmd, IOrmLiteSession session)
             where T : new()
         {
-            DropTable(dbCmd, ModelDefinition<T>.Definition);
+            DropTable(dbCmd, session.GetModelDefinition<T>().Definition);
         }
 
         internal static void DropTable(this IDbCommand dbCmd, Type modelType)
@@ -214,9 +214,9 @@ namespace ServiceStack.OrmLite
             return ex.Message.Contains(fbError);
         }
 		
-        public static T PopulateWithSqlReader<T>(this T objWithProperties, IDataReader dataReader)
+        public static T PopulateWithSqlReader<T>(this T objWithProperties, IOrmLiteSession session, IDataReader dataReader)
         {
-            var fieldDefs = ModelDefinition<T>.Definition.AllFieldDefinitionsArray;
+            var fieldDefs = session.GetModelDefinition<T>().Definition.AllFieldDefinitionsArray;
 
             return PopulateWithSqlReader(objWithProperties, dataReader, fieldDefs, null);
         }
@@ -377,9 +377,9 @@ namespace ServiceStack.OrmLite
 			}
 		}
 
-        internal static void DeleteById<T>(this IDbCommand dbCmd, object id)
+        internal static void DeleteById<T>(this IDbCommand dbCmd, IOrmLiteSession session, object id)
         {
-            var modelDef = ModelDefinition<T>.Definition;
+            var modelDef = session.GetModelDefinition<T>().Definition;
 
             var sql = string.Format("DELETE FROM {0} WHERE {1} = {2}",
                 OrmLiteConfig.DialectProvider.GetQuotedTableName(modelDef),
@@ -389,12 +389,12 @@ namespace ServiceStack.OrmLite
             dbCmd.ExecuteSql(sql);
         }
 
-        internal static void DeleteByIds<T>(this IDbCommand dbCmd, IEnumerable idValues)
+        internal static void DeleteByIds<T>(this IDbCommand dbCmd, IOrmLiteSession session, IEnumerable idValues)
         {
             var sqlIn = idValues.GetIdsInSql();
             if (sqlIn == null) return;
 
-            var modelDef = ModelDefinition<T>.Definition;
+            var modelDef = session.GetModelDefinition<T>().Definition;
 
             var sql = string.Format("DELETE FROM {0} WHERE {1} IN ({2})",
                 OrmLiteConfig.DialectProvider.GetQuotedTableName(modelDef),
@@ -404,9 +404,9 @@ namespace ServiceStack.OrmLite
             dbCmd.ExecuteSql(sql);
         }
 
-        internal static void DeleteByIdParam<T>(this IDbCommand dbCmd, object id)
+        internal static void DeleteByIdParam<T>(this IDbCommand dbCmd, IOrmLiteSession session, object id)
         {
-            var modelDef = ModelDefinition<T>.Definition;
+            var modelDef = session.GetModelDefinition<T>().Definition;
             var idParamString = OrmLiteConfig.DialectProvider.ParamString+"0";
 
             var sql = string.Format("DELETE FROM {0} WHERE {1} = {2}",
@@ -442,10 +442,10 @@ namespace ServiceStack.OrmLite
             dbCmd.ExecuteSql(OrmLiteConfig.DialectProvider.ToDeleteStatement(tableType, sqlFilter, filterParams));
         }
 
-        internal static void Save<T>(this IDbCommand dbCmd, T obj)
+        internal static void Save<T>(this IDbCommand dbCmd, IOrmLiteSession session, T obj)
         {
             var id = obj.GetId();
-            var existingRow = dbCmd.GetByIdOrDefault<T>(id);
+            var existingRow = dbCmd.GetByIdOrDefault<T>(session, id);
             if (Equals(existingRow, default(T)))
             {
                 dbCmd.Insert(obj);
@@ -477,12 +477,12 @@ namespace ServiceStack.OrmLite
             return OrmLiteConfig.DialectProvider.CreateParameterizedInsertStatement(connection, obj);
         }
 
-        internal static void Save<T>(this IDbCommand dbCmd, params T[] objs)
+        internal static void Save<T>(this IDbCommand dbCmd, IOrmLiteSession session, params T[] objs)
         {
-            SaveAll(dbCmd, objs);
+            SaveAll(dbCmd, session, objs);
         }
 
-        internal static void SaveAll<T>(this IDbCommand dbCmd, IEnumerable<T> objs)
+        internal static void SaveAll<T>(this IDbCommand dbCmd, IOrmLiteSession session, IEnumerable<T> objs)
         {
             var saveRows = objs.ToList();
 
@@ -495,7 +495,7 @@ namespace ServiceStack.OrmLite
                 ? saveRows.Where(x => !defaultIdValue.Equals(x.GetId())).ToDictionary(x => x.GetId())
                 : saveRows.Where(x => x.GetId() != null).ToDictionary(x => x.GetId());
 
-            var existingRowsMap = dbCmd.GetByIds<T>(idMap.Keys).ToDictionary(x => x.GetId());
+            var existingRowsMap = dbCmd.GetByIds<T>(session, idMap.Keys).ToDictionary(x => x.GetId());
 
             using (var dbTrans = dbCmd.Connection.BeginTransaction())
             {
