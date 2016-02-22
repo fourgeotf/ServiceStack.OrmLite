@@ -1,0 +1,49 @@
+using System;
+using System.Collections.Generic;
+using System.Data;
+
+namespace ServiceStack.OrmLite
+{
+    public class OrmLiteSession : IOrmLiteSession
+    {
+        private Dictionary<Type, IModelDefinition> _modelDefinitions;
+        private IDbConnection _connection;
+
+        public delegate void ObjectInstanceCreatedHandler(ObjectInstanceCreatedEventArgs e);
+
+        public ObjectInstanceCreatedHandler ObjectInstanceCreated;
+         
+        public IDbConnection Connection
+        {
+            get { return _connection ?? (_connection = CreateConnection()); }
+            set { _connection = value; }
+        }
+
+        public ModelDefinition<T> GetModelDefinition<T>()
+        {
+            if (!ModelDefinitions.ContainsKey(typeof (T)))
+                ModelDefinitions.Add(typeof(T), new ModelDefinition<T>());
+
+            return ModelDefinitions[typeof (T)] as ModelDefinition<T>;            
+        }
+
+        public Dictionary<Type, IModelDefinition> ModelDefinitions => _modelDefinitions ?? (_modelDefinitions = new Dictionary<Type, IModelDefinition>());
+
+        protected virtual IDbConnection CreateConnection()
+        {
+            throw new NotImplementedException();
+        }
+
+        public T CreateInstance<T>()
+        {
+            var item = OrmLiteUtilExtensions.CreateInstance<T>();
+            OnObjectInstanceCreated(new ObjectInstanceCreatedEventArgs(this, item));
+            return item;
+        }
+
+        protected void OnObjectInstanceCreated(ObjectInstanceCreatedEventArgs e)
+        {
+            ObjectInstanceCreated?.Invoke(e);
+        }
+    }
+}
