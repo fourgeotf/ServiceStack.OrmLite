@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq.Expressions;
@@ -10,21 +10,21 @@ namespace ServiceStack.OrmLite
         [ThreadStatic]
         internal static string LastCommandText;
 
-        public static SqlExpressionVisitor<T> CreateExpression<T>(this IDbConnection dbConn) 
+        public static SqlExpressionVisitor<T> CreateExpression<T>(this IOrmLiteSession session) 
         {
-            return dbConn.GetDialectProvider().ExpressionVisitor<T>();
+            return session.GetDialectProvider().ExpressionVisitor<T>();
         }
 
-        public static T Exec<T>(this IDbConnection dbConn, Func<IDbCommand, T> filter)
+        public static T Exec<T>(this IOrmLiteSession session, Func<IDbCommand, T> filter)
         {
             var holdProvider = OrmLiteConfig.TSDialectProvider;
             try
             {
-                var ormLiteDbConn = dbConn as OrmLiteConnection;
+                var ormLiteDbConn = session.Connection as OrmLiteConnection;
                 if (ormLiteDbConn != null)
                     OrmLiteConfig.TSDialectProvider = ormLiteDbConn.Factory.DialectProvider;
 
-                using (var dbCmd = dbConn.CreateCommand())
+                using (var dbCmd = session.Connection.CreateCommand())
                 {
                     dbCmd.Transaction = (ormLiteDbConn != null) ? ormLiteDbConn.Transaction : OrmLiteConfig.TSTransaction;
                     dbCmd.CommandTimeout = OrmLiteConfig.CommandTimeout;
@@ -39,16 +39,16 @@ namespace ServiceStack.OrmLite
             }
         }
 
-        public static void Exec(this IDbConnection dbConn, Action<IDbCommand> filter)
+        public static void Exec(this IOrmLiteSession session, Action<IDbCommand> filter)
         {
             var dialectProvider = OrmLiteConfig.DialectProvider;
             try
             {
-                var ormLiteDbConn = dbConn as OrmLiteConnection;
+                var ormLiteDbConn = session.Connection as OrmLiteConnection;
                 if (ormLiteDbConn != null)
                     OrmLiteConfig.DialectProvider = ormLiteDbConn.Factory.DialectProvider;
 
-                using (var dbCmd = dbConn.CreateCommand())
+                using (var dbCmd = session.Connection.CreateCommand())
                 {
                     dbCmd.Transaction = (ormLiteDbConn != null) ? ormLiteDbConn.Transaction : OrmLiteConfig.TSTransaction;
                     dbCmd.CommandTimeout = OrmLiteConfig.CommandTimeout;
@@ -63,16 +63,16 @@ namespace ServiceStack.OrmLite
             }
         }
 
-        public static IEnumerable<T> ExecLazy<T>(this IDbConnection dbConn, Func<IDbCommand, IEnumerable<T>> filter)
+        public static IEnumerable<T> ExecLazy<T>(this IOrmLiteSession session, Func<IDbCommand, IEnumerable<T>> filter)
         {
             var dialectProvider = OrmLiteConfig.DialectProvider;
             try
             {
-                var ormLiteDbConn = dbConn as OrmLiteConnection;
+                var ormLiteDbConn = session.Connection as OrmLiteConnection;
                 if (ormLiteDbConn != null)
                     OrmLiteConfig.DialectProvider = ormLiteDbConn.Factory.DialectProvider;
 
-                using (var dbCmd = dbConn.CreateCommand())
+                using (var dbCmd = session.Connection.CreateCommand())
                 {
                     dbCmd.Transaction = (ormLiteDbConn != null) ? ormLiteDbConn.Transaction : OrmLiteConfig.TSTransaction;
                     dbCmd.CommandTimeout = OrmLiteConfig.CommandTimeout;
@@ -91,19 +91,19 @@ namespace ServiceStack.OrmLite
             }
         }
 
-        public static IDbTransaction OpenTransaction(this IDbConnection dbConn)
+        public static IDbTransaction OpenTransaction(this IOrmLiteSession session)
         {
-            return new OrmLiteTransaction(dbConn, dbConn.BeginTransaction());
+            return new OrmLiteTransaction(session.Connection, session.Connection.BeginTransaction());
         }
 
-        public static IDbTransaction OpenTransaction(this IDbConnection dbConn, IsolationLevel isolationLevel)
+        public static IDbTransaction OpenTransaction(this IOrmLiteSession session, IsolationLevel isolationLevel)
         {
-            return new OrmLiteTransaction(dbConn, dbConn.BeginTransaction(isolationLevel));
+            return new OrmLiteTransaction(session.Connection, session.Connection.BeginTransaction(isolationLevel));
         }
 
-        public static IOrmLiteDialectProvider GetDialectProvider(this IDbConnection dbConn)
+        public static IOrmLiteDialectProvider GetDialectProvider(this IOrmLiteSession session)
         {
-            var ormLiteDbConn = dbConn as OrmLiteConnection;
+            var ormLiteDbConn = session.Connection as OrmLiteConnection;
             return ormLiteDbConn != null 
                 ? ormLiteDbConn.Factory.DialectProvider 
                 : OrmLiteConfig.DialectProvider;
@@ -114,75 +114,75 @@ namespace ServiceStack.OrmLite
             return OrmLiteConfig.DialectProvider.ExpressionVisitor<T>();
         }
 
-        public static List<T> Select<T>(this IDbConnection dbConn, Expression<Func<T, bool>> predicate)
+        public static List<T> Select<T>(this IOrmLiteSession session, Expression<Func<T, bool>> predicate)
         {
-            return dbConn.Exec(dbCmd => dbCmd.Select(predicate));
+            return session.Exec(dbCmd => dbCmd.Select(session, predicate));
         }
 
-        public static List<T> Select<T>(this IDbConnection dbConn, Func<SqlExpressionVisitor<T>, SqlExpressionVisitor<T>> expression)
+        public static List<T> Select<T>(this IOrmLiteSession session, Func<SqlExpressionVisitor<T>, SqlExpressionVisitor<T>> expression)
         {
-            return dbConn.Exec(dbCmd => dbCmd.Select(expression));
+            return session.Exec(dbCmd => dbCmd.Select(session, expression));
         }
 
-        public static List<T> Select<T>(this IDbConnection dbConn, SqlExpressionVisitor<T> expression)
+        public static List<T> Select<T>(this IOrmLiteSession session, SqlExpressionVisitor<T> expression)
         {
-            return dbConn.Exec(dbCmd => dbCmd.Select(expression));
+            return session.Exec(dbCmd => dbCmd.Select(session, expression));
         }
 
         /// <summary>
         /// Performs the same function as Select() except arguments are passed as parameters to the generated SQL.
         /// Currently does not support complex SQL.## ,  .StartsWith(), EndsWith() and Contains() operators
         /// </summary>
-        public static List<T> SelectParam<T>(this IDbConnection dbConn, Expression<Func<T, bool>> predicate)
+        public static List<T> SelectParam<T>(this IOrmLiteSession session, Expression<Func<T, bool>> predicate)
         {
-            return dbConn.Exec(dbCmd => dbCmd.SelectParam(predicate));
+            return session.Exec(dbCmd => dbCmd.SelectParam(session, predicate));
         }
 
-        public static T First<T>(this IDbConnection dbConn, Expression<Func<T, bool>> predicate)
+        public static T First<T>(this IOrmLiteSession session, Expression<Func<T, bool>> predicate)
         {
-            return dbConn.Exec(dbCmd => dbCmd.First(predicate));
+            return session.Exec(dbCmd => dbCmd.First(session, predicate));
         }
 
-        public static T First<T>(this IDbConnection dbConn, SqlExpressionVisitor<T> expression)
+        public static T First<T>(this IOrmLiteSession session, SqlExpressionVisitor<T> expression)
         {
-            return dbConn.Exec(dbCmd => dbCmd.First(expression));
+            return session.Exec(dbCmd => dbCmd.First(session, expression));
         }
 
-        public static T FirstOrDefault<T>(this IDbConnection dbConn, Expression<Func<T, bool>> predicate)
+        public static T FirstOrDefault<T>(this IOrmLiteSession session, Expression<Func<T, bool>> predicate)
         {
-            return dbConn.Exec(dbCmd => dbCmd.FirstOrDefault(predicate));
+            return session.Exec(dbCmd => dbCmd.FirstOrDefault(session, predicate));
         }
 
-        public static T FirstOrDefault<T>(this IDbConnection dbConn, SqlExpressionVisitor<T> expression)
+        public static T FirstOrDefault<T>(this IOrmLiteSession session, SqlExpressionVisitor<T> expression)
         {
-            return dbConn.Exec(dbCmd => dbCmd.FirstOrDefault(expression));
+            return session.Exec(dbCmd => dbCmd.FirstOrDefault(session, expression));
         }
 
-        public static TKey GetScalar<T, TKey>(this IDbConnection dbConn, Expression<Func<T, TKey>> field)
+        public static TKey GetScalar<T, TKey>(this IOrmLiteSession session, Expression<Func<T, TKey>> field)
         {
-            return dbConn.Exec(dbCmd => dbCmd.GetScalar(field));
+            return session.Exec(dbCmd => dbCmd.GetScalar(field));
         }
 
-        public static TKey GetScalar<T, TKey>(this IDbConnection dbConn, Expression<Func<T, TKey>> field,
+        public static TKey GetScalar<T, TKey>(this IOrmLiteSession session, Expression<Func<T, TKey>> field,
                                              Expression<Func<T, bool>> predicate)
         {
-            return dbConn.Exec(dbCmd => dbCmd.GetScalar(field, predicate));
+            return session.Exec(dbCmd => dbCmd.GetScalar(field, predicate));
         }
 
-        public static long Count<T>(this IDbConnection dbConn, SqlExpressionVisitor<T> expression)
+        public static long Count<T>(this IOrmLiteSession session, SqlExpressionVisitor<T> expression)
         {
-            return dbConn.Exec(dbCmd => dbCmd.Count(expression));
+            return session.Exec(dbCmd => dbCmd.Count(expression));
         }
 
-        public static long Count<T>(this IDbConnection dbConn, Expression<Func<T, bool>> expression)
+        public static long Count<T>(this IOrmLiteSession session, Expression<Func<T, bool>> expression)
         {
-            return dbConn.Exec(dbCmd => dbCmd.Count(expression));
+            return session.Exec(dbCmd => dbCmd.Count(expression));
         }
 
-        public static long Count<T>(this IDbConnection dbConn)
+        public static long Count<T>(this IOrmLiteSession session)
         {
             SqlExpressionVisitor<T> expression = OrmLiteConfig.DialectProvider.ExpressionVisitor<T>();
-            return dbConn.Exec(dbCmd => dbCmd.Count(expression));
+            return session.Exec(dbCmd => dbCmd.Count(expression));
         }
     }
 }
