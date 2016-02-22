@@ -25,16 +25,16 @@ namespace ServiceStack.OrmLite
             return (T)ReflectionExtensions.CreateInstance<T>();
         }
 
-		public static T ConvertTo<T>(this IDataReader dataReader)
+		public static T ConvertTo<T>(this IDataReader dataReader, IOrmLiteSession session)
         {
-			var fieldDefs = ModelDefinition<T>.Definition.AllFieldDefinitionsArray;
+			var fieldDefs = session.GetModelDefinition<T>().Definition.AllFieldDefinitionsArray;
 
 			using (dataReader)
 			{
 				if (dataReader.Read())
 				{
-                    var row = CreateInstance<T>();
-					var indexCache = dataReader.GetIndexFieldsCache(ModelDefinition<T>.Definition);
+                    var row = session.CreateInstance<T>();
+					var indexCache = dataReader.GetIndexFieldsCache(session.GetModelDefinition<T>().Definition);
 					row.PopulateWithSqlReader(dataReader, fieldDefs, indexCache);
 					return row;
 				}
@@ -42,17 +42,17 @@ namespace ServiceStack.OrmLite
 			}
 		}
 
-		public static List<T> ConvertToList<T>(this IDataReader dataReader)
+		public static List<T> ConvertToList<T>(this IDataReader dataReader, IOrmLiteSession session)
 		{
-            var fieldDefs = ModelDefinition<T>.Definition.AllFieldDefinitionsArray;
+            var fieldDefs = session.GetModelDefinition<T>().Definition.AllFieldDefinitionsArray;
 
 			var to = new List<T>();
 			using (dataReader)
 			{
-				var indexCache = dataReader.GetIndexFieldsCache(ModelDefinition<T>.Definition);
+				var indexCache = dataReader.GetIndexFieldsCache(session.GetModelDefinition<T>().Definition);
 				while (dataReader.Read())
 				{
-                    var row = CreateInstance<T>();
+                    var row = session.CreateInstance<T>();
 					row.PopulateWithSqlReader(dataReader, fieldDefs, indexCache);
 					to.Add(row);
 				}
